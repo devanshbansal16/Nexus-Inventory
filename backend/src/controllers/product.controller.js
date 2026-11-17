@@ -1,8 +1,10 @@
+const mongoose = require('mongoose');
 const { Product, Inventory, MarketplaceListing, Warehouse } = require('../models');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../middleware/asyncHandler');
 const inventoryService = require('../services/inventory.service');
+const { DEMO_PRODUCTS } = require('../utils/demoData');
 
 const createProduct = asyncHandler(async (req, res) => {
   const {
@@ -63,6 +65,13 @@ const createProduct = asyncHandler(async (req, res) => {
 });
 
 const getProducts = asyncHandler(async (req, res) => {
+  if (mongoose.connection.readyState !== 1) {
+    return new ApiResponse(200, 'Products fetched (Demo Mode)', {
+      products: DEMO_PRODUCTS,
+      pagination: { total: DEMO_PRODUCTS.length, page: 1, limit: 20, pages: 1 },
+    }).send(res, 200);
+  }
+
   const { page = 1, limit = 20, search, category, brand, sku } = req.query;
 
   const query = {};

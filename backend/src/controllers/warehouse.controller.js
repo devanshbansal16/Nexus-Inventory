@@ -1,7 +1,9 @@
+const mongoose = require('mongoose');
 const { Warehouse, Inventory, Product } = require('../models');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../middleware/asyncHandler');
+const { DEMO_WAREHOUSES } = require('../utils/demoData');
 
 const createWarehouse = asyncHandler(async (req, res) => {
   const { warehouseCode, name, address, managerId, capacity, priority } = req.body;
@@ -40,6 +42,10 @@ const createWarehouse = asyncHandler(async (req, res) => {
 });
 
 const getWarehouses = asyncHandler(async (req, res) => {
+  if (mongoose.connection.readyState !== 1) {
+    return new ApiResponse(200, 'Warehouses fetched (Demo Mode)', DEMO_WAREHOUSES).send(res, 200);
+  }
+
   const warehouses = await Warehouse.find().populate('managerId', 'name email');
 
   // Compute live utilization for each warehouse

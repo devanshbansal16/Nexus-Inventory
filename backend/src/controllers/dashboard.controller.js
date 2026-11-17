@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const {
   Product,
   Warehouse,
@@ -9,8 +10,20 @@ const {
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../middleware/asyncHandler');
 const inventoryService = require('../services/inventory.service');
+const {
+  DEMO_DASHBOARD_OVERVIEW,
+  DEMO_SALES_ANALYTICS,
+  DEMO_TOP_PRODUCTS,
+  DEMO_WAREHOUSES,
+  DEMO_PRODUCTS,
+} = require('../utils/demoData');
 
 const getOverview = asyncHandler(async (req, res) => {
+  // Standalone / Demo mode fallback
+  if (mongoose.connection.readyState !== 1) {
+    return new ApiResponse(200, 'Dashboard overview data fetched (Demo Mode)', DEMO_DASHBOARD_OVERVIEW).send(res, 200);
+  }
+
   // 1. Core KPIs
   const totalProducts = await Product.countDocuments({ isActive: true });
   const totalWarehouses = await Warehouse.countDocuments({ isActive: true });
@@ -131,6 +144,10 @@ const getOverview = asyncHandler(async (req, res) => {
 });
 
 const getSalesAnalytics = asyncHandler(async (req, res) => {
+  if (mongoose.connection.readyState !== 1) {
+    return new ApiResponse(200, 'Sales analytics fetched (Demo Mode)', DEMO_SALES_ANALYTICS).send(res, 200);
+  }
+
   const salesByMarketplace = await Order.aggregate([
     { $match: { orderStatus: { $ne: 'CANCELLED' } } },
     {
@@ -163,6 +180,10 @@ const getSalesAnalytics = asyncHandler(async (req, res) => {
 });
 
 const getTopProducts = asyncHandler(async (req, res) => {
+  if (mongoose.connection.readyState !== 1) {
+    return new ApiResponse(200, 'Top selling products fetched (Demo Mode)', DEMO_TOP_PRODUCTS).send(res, 200);
+  }
+
   const topProducts = await Order.aggregate([
     { $unwind: '$items' },
     {
@@ -199,6 +220,22 @@ const getTopProducts = asyncHandler(async (req, res) => {
 });
 
 const getWarehouseDistribution = asyncHandler(async (req, res) => {
+  if (mongoose.connection.readyState !== 1) {
+    const demoDist = DEMO_WAREHOUSES.map((wh) => ({
+      warehouseId: wh._id,
+      warehouseName: wh.name,
+      warehouseCode: wh.warehouseCode,
+      capacity: wh.capacity,
+      products: DEMO_PRODUCTS.slice(0, 3).map((p) => ({
+        name: p.name,
+        sku: p.sku,
+        availableStock: 50,
+        physicalStock: 60,
+      })),
+    }));
+    return new ApiResponse(200, 'Warehouse inventory distribution (Demo Mode)', demoDist).send(res, 200);
+  }
+
   const warehouses = await Warehouse.find({ isActive: true });
   const distribution = await Promise.all(
     warehouses.map(async (wh) => {

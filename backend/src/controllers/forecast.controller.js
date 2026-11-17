@@ -1,13 +1,54 @@
+const mongoose = require('mongoose');
 const { Forecast, Product, Order, Inventory } = require('../models');
 const ApiResponse = require('../utils/ApiResponse');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../middleware/asyncHandler');
 const inventoryService = require('../services/inventory.service');
+const { DEMO_RECOMMENDATIONS, DEMO_PRODUCTS } = require('../utils/demoData');
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
 const getForecastByProductId = asyncHandler(async (req, res) => {
   const { productId } = req.params;
+
+  if (mongoose.connection.readyState !== 1) {
+    const product = DEMO_PRODUCTS.find((p) => p._id === productId) || DEMO_PRODUCTS[0];
+    const historicalDays = [];
+    for (let i = 14; i >= 1; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      historicalDays.push({
+        date: d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
+        actualDemand: Math.max(0, Math.round(5 + Math.sin(i) * 3)),
+      });
+    }
+    const predictedDays = [];
+    for (let i = 1; i <= 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      predictedDays.push({
+        date: d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
+        predictedDemand: 6,
+      });
+    }
+    return new ApiResponse(200, 'Product demand forecast fetched (Demo Mode)', {
+      product,
+      currentAvailableStock: product.totalStock?.availableStock || 25,
+      forecast: {
+        productId: product._id,
+        horizonDays: 7,
+        predictedDemand: 42,
+        confidenceInterval: { lower: 36, upper: 48 },
+        recommendedReorderQuantity: 30,
+        recommendedRestockDate: new Date(Date.now() + 3 * 86400000),
+        isStockoutRisk: true,
+        modelName: 'Demo_Forecast_Model',
+      },
+      historicalDemand: historicalDays,
+      predictedDemandChart: predictedDays,
+    }).send(res, 200);
+  }
+
   const product = await Product.findById(productId);
   if (!product) throw new ApiError(404, 'Product not found');
 
@@ -123,6 +164,10 @@ const generateForecast = asyncHandler(async (req, res) => {
 });
 
 const getRecommendations = asyncHandler(async (req, res) => {
+  if (mongoose.connection.readyState !== 1) {
+    return new ApiResponse(200, 'Reorder recommendations fetched (Demo Mode)', DEMO_RECOMMENDATIONS).send(res, 200);
+  }
+
   const products = await Product.find({ isActive: true });
   const recommendations = [];
 

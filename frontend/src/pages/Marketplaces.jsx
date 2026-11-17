@@ -54,12 +54,20 @@ export default function Marketplaces() {
 
   // Listen to live sync events from Socket.IO
   useEffect(() => {
-    if (!socket) return;
-    socket.on('sync:completed', (data) => {
+    if (!socket || typeof socket.on !== 'function') return;
+
+    const handleSyncCompleted = (data) => {
       console.log('Real-time sync broadcast event:', data);
       fetchData();
-    });
-    return () => socket.off('sync:completed');
+    };
+
+    socket.on('sync:completed', handleSyncCompleted);
+
+    return () => {
+      if (typeof socket.off === 'function') {
+        socket.off('sync:completed', handleSyncCompleted);
+      }
+    };
   }, [socket]);
 
   // Handle Simulated Order Placement

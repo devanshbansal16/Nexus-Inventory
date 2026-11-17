@@ -1,11 +1,17 @@
+const mongoose = require('mongoose');
 const { Marketplace, MarketplaceListing, Product } = require('../models');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../middleware/asyncHandler');
 const syncService = require('../services/sync.service');
 const { getAdapter } = require('../adapters/marketplace');
+const { DEMO_MARKETPLACES } = require('../utils/demoData');
 
 const getMarketplaces = asyncHandler(async (req, res) => {
+  if (mongoose.connection.readyState !== 1) {
+    return new ApiResponse(200, 'Marketplaces fetched (Demo Mode)', DEMO_MARKETPLACES).send(res, 200);
+  }
+
   const marketplaces = await Marketplace.find();
 
   // Attach live simulated stock metrics for each marketplace

@@ -58,14 +58,14 @@ export default function Dashboard() {
 
   // Real-time socket updates for live stock & order events
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || typeof socket.on !== 'function') return;
 
-    socket.on('inventory:updated', (payload) => {
+    const handleInventoryUpdate = (payload) => {
       console.log('Real-time inventory update received:', payload);
       fetchDashboardData();
-    });
+    };
 
-    socket.on('order:created', (newOrder) => {
+    const handleOrderCreated = (newOrder) => {
       console.log('Real-time new order received:', newOrder);
       setRecentOrders((prev) => [newOrder, ...prev.slice(0, 4)]);
       setStats((prev) => ({
@@ -73,16 +73,22 @@ export default function Dashboard() {
         totalOrders: (prev.totalOrders || 0) + 1,
         totalSales: (prev.totalSales || 0) + (newOrder.totalAmount || 0),
       }));
-    });
+    };
 
-    socket.on('sync:completed', () => {
+    const handleSyncCompleted = () => {
       fetchDashboardData();
-    });
+    };
+
+    socket.on('inventory:updated', handleInventoryUpdate);
+    socket.on('order:created', handleOrderCreated);
+    socket.on('sync:completed', handleSyncCompleted);
 
     return () => {
-      socket.off('inventory:updated');
-      socket.off('order:created');
-      socket.off('sync:completed');
+      if (typeof socket.off === 'function') {
+        socket.off('inventory:updated', handleInventoryUpdate);
+        socket.off('order:created', handleOrderCreated);
+        socket.off('sync:completed', handleSyncCompleted);
+      }
     };
   }, [socket]);
 

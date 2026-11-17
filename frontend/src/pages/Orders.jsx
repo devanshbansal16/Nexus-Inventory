@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Search, Filter, Ban, RotateCcw, Eye, MapPin, Truck } from 'lucide-react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import Input from '../components/common/Input';
 import Table from '../components/common/Table';
 import Modal from '../components/common/Modal';
 import StatusBadge from '../components/common/StatusBadge';
