@@ -1,4 +1,5 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const mongoose = require('mongoose');
 const {
   User,
@@ -15,9 +16,11 @@ const {
 
 const connectDB = async () => {
   try {
-    const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/cims';
-    await mongoose.connect(mongoUri);
-    console.log(`[Seeder] MongoDB Connected: ${mongoUri}`);
+    const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/nexus';
+    const conn = await mongoose.connect(mongoUri, {
+      dbName: 'nexus',
+    });
+    console.log(`[Seeder] MongoDB Connected: ${conn.connection.host} (Database: ${conn.connection.name})`);
   } catch (err) {
     console.error('[Seeder] MongoDB Connection Error:', err.message);
     process.exit(1);
