@@ -11,7 +11,7 @@ router.get('/:id/listings', protect, marketplaceController.getMarketplaceListing
 router.post(
   '/',
   protect,
-  authorize('super_admin'),
+  authorize('super_admin', 'inventory_manager'),
   marketplaceController.createMarketplace
 );
 

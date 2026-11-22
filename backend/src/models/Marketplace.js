@@ -5,14 +5,14 @@ const marketplaceSchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
-      enum: ['Amazon', 'Flipkart', 'Meesho', 'Shopify', 'Company Website'],
+      trim: true,
     },
     code: {
       type: String,
       required: true,
       unique: true,
       lowercase: true,
-      enum: ['amazon', 'flipkart', 'meesho', 'shopify', 'direct'],
+      trim: true,
     },
     status: {
       type: String,

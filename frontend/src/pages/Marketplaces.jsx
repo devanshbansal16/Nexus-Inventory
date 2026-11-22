@@ -1,16 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import {
   Store, ShoppingCart, RefreshCw, AlertTriangle, CheckCircle,
-  ExternalLink, Zap, Bug, ArrowRight, ShieldAlert, Cpu
+  ExternalLink, Zap, Bug, ArrowRight, ShieldAlert, Cpu, Plus, Sparkles
 } from 'lucide-react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
+import Modal from '../components/common/Modal';
 import Badge from '../components/common/Badge';
 import StatusBadge from '../components/common/StatusBadge';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { useSocket } from '../hooks/useSocket';
 import api from '../services/api';
+
+const PRESET_MARKETPLACES = [
+  { name: 'Amazon US', code: 'amazon-us', defaultBuffer: 5 },
+  { name: 'Myntra', code: 'myntra', defaultBuffer: 5 },
+  { name: 'Tata CLiQ', code: 'tatacliq', defaultBuffer: 5 },
+  { name: 'eBay', code: 'ebay', defaultBuffer: 8 },
+  { name: 'WooCommerce Store', code: 'woocommerce', defaultBuffer: 0 },
+  { name: 'Nykaa', code: 'nykaa', defaultBuffer: 5 },
+];
 
 export default function Marketplaces() {
   const [marketplaces, setMarketplaces] = useState([]);
@@ -25,6 +35,16 @@ export default function Marketplaces() {
   const [simCustomerCity, setSimCustomerCity] = useState('Delhi');
   const [simulationResult, setSimulationResult] = useState(null);
 
+  // Add Marketplace Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newMpName, setNewMpName] = useState('');
+  const [newMpCode, setNewMpCode] = useState('');
+  const [newMpApiKey, setNewMpApiKey] = useState('');
+  const [newMpApiSecret, setNewMpApiSecret] = useState('');
+  const [newMpSafetyBuffer, setNewMpSafetyBuffer] = useState(5);
+  const [creatingMp, setCreatingMp] = useState(false);
+  const [createError, setCreateError] = useState('');
+
   const socket = useSocket();
 
   const fetchData = async () => {
@@ -34,7 +54,9 @@ export default function Marketplaces() {
         api.get('/marketplaces'),
         api.get('/products'),
       ]);
-      if (mpRes.data?.data) setMarketplaces(mpRes.data.data);
+      if (mpRes.data?.data) {
+        setMarketplaces(mpRes.data.data);
+      }
       if (prodRes.data?.data?.products) {
         setProducts(prodRes.data.data.products);
         if (prodRes.data.data.products.length > 0 && !simSku) {
@@ -128,7 +150,7 @@ export default function Marketplaces() {
   };
 
   // Toggle chaos test / simulated failure
-  const handleToggleFailure = async (mpId, currentStatus) => {
+  const handleToggleFailure = async (mpId) => {
     try {
       await api.post(`/marketplaces/${mpId}/simulate-failure`, {
         failNext: true,
@@ -139,44 +161,81 @@ export default function Marketplaces() {
     }
   };
 
-  const platforms = [
-    {
-      code: 'amazon',
-      name: 'Amazon India',
-      theme: 'border-amber-300 bg-amber-50/30',
-      badge: 'Amazon SP-API (Simulated)',
-    },
-    {
-      code: 'flipkart',
-      name: 'Flipkart',
-      theme: 'border-blue-300 bg-blue-50/30',
-      badge: 'Flipkart Marketplace API (Simulated)',
-    },
-    {
-      code: 'meesho',
-      name: 'Meesho',
-      theme: 'border-pink-300 bg-pink-50/30',
-      badge: 'Meesho Supplier Webhook (Simulated)',
-    },
-    {
-      code: 'shopify',
-      name: 'Shopify Store',
-      theme: 'border-emerald-300 bg-emerald-50/30',
-      badge: 'Shopify Admin REST API (Simulated)',
-    },
-  ];
+  // Handle Registering a New Marketplace
+  const handleCreateMarketplace = async (e) => {
+    e.preventDefault();
+    setCreatingMp(true);
+    setCreateError('');
+
+    try {
+      await api.post('/marketplaces', {
+        name: newMpName.trim(),
+        code: newMpCode.toLowerCase().trim(),
+        apiKey: newMpApiKey.trim() || `key_${Date.now()}`,
+        apiSecret: newMpApiSecret.trim() || `sec_${Date.now()}`,
+        isSimulated: true,
+        settings: {
+          safetyBufferPercentage: Number(newMpSafetyBuffer) || 0,
+          autoSync: true,
+        },
+      });
+
+      setIsAddModalOpen(false);
+      setNewMpName('');
+      setNewMpCode('');
+      setNewMpApiKey('');
+      setNewMpApiSecret('');
+      setNewMpSafetyBuffer(5);
+      await fetchData();
+    } catch (err) {
+      setCreateError(err.response?.data?.message || err.message || 'Failed to register marketplace');
+    } finally {
+      setCreatingMp(false);
+    }
+  };
+
+  const handleSelectPreset = (preset) => {
+    setNewMpName(preset.name);
+    setNewMpCode(preset.code);
+    setNewMpSafetyBuffer(preset.defaultBuffer);
+  };
+
+  // Available platforms for order simulation
+  const activePlatforms = marketplaces.length > 0
+    ? marketplaces.map((m) => ({
+        code: m.code,
+        name: m.name,
+      }))
+    : [
+        { code: 'amazon', name: 'Amazon India' },
+        { code: 'flipkart', name: 'Flipkart' },
+        { code: 'meesho', name: 'Meesho' },
+        { code: 'shopify', name: 'Shopify Store' },
+      ];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-slate-800">Marketplace Integration & Simulator</h1>
-          <Badge variant="indigo" size="sm">SIMULATION MODE ACTIVE</Badge>
+      {/* Header with Add Marketplace Button */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-800">Marketplace Integration & Simulator</h1>
+            <Badge variant="indigo" size="sm">SIMULATION MODE ACTIVE</Badge>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Test real-time multi-channel inventory deduction and resilience across Amazon, Flipkart, Meesho, Shopify, and connected platforms.
+          </p>
         </div>
-        <p className="text-xs text-slate-500 mt-1">
-          Test real-time multi-channel inventory deduction and resilience across Amazon, Flipkart, Meesho, and Shopify
-        </p>
+
+        <Button
+          onClick={() => {
+            setCreateError('');
+            setIsAddModalOpen(true);
+          }}
+          className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs px-4 py-2.5 rounded-xl shadow-xs self-start sm:self-auto"
+        >
+          <Plus size={16} /> Connect Marketplace
+        </Button>
       </div>
 
       {/* Simulator Hero Panel */}
@@ -192,8 +251,8 @@ export default function Marketplaces() {
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
                 1. Select Ordering Channel
               </label>
-              <div className="grid grid-cols-2 gap-2">
-                {platforms.map((p) => (
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                {activePlatforms.map((p) => (
                   <button
                     key={p.code}
                     type="button"
@@ -204,7 +263,7 @@ export default function Marketplaces() {
                         : 'border-slate-200 bg-slate-50/80 hover:bg-white text-slate-600'
                     }`}
                   >
-                    <p className="text-xs font-bold text-slate-800">{p.name}</p>
+                    <p className="text-xs font-bold text-slate-800 truncate">{p.name}</p>
                     <p className="text-[10px] text-slate-400 mt-0.5">{p.code.toUpperCase()} adapter</p>
                   </button>
                 ))}
@@ -318,7 +377,7 @@ export default function Marketplaces() {
                         <p className="text-slate-600 text-[11px] mt-0.5">
                           ✓ Reserved {simQuantity} units atomically in closest warehouse.<br />
                           ✓ Transactional Outbox created event `MARKETPLACE_SYNC_REQUIRED`.<br />
-                          ✓ Remaining channels (Amazon, Flipkart, Meesho, Shopify) updated to new available balance!
+                          ✓ All connected channels synchronized with fresh inventory balances!
                         </p>
                       </div>
                     </div>
@@ -342,9 +401,18 @@ export default function Marketplaces() {
 
       {/* Connected Marketplaces Overview Table */}
       <div>
-        <h3 className="text-base font-bold text-slate-800 mb-3">
-          Channel Sync Status & Simulated Product Stock
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-bold text-slate-800">
+            Connected Channels & Sync Health ({marketplaces.length})
+          </h3>
+          <button
+            onClick={fetchData}
+            className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1"
+          >
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh Status
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {marketplaces.map((mp) => (
             <div
@@ -353,21 +421,23 @@ export default function Marketplaces() {
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-slate-800 text-sm">{mp.name}</h4>
-                  <Badge variant="success">CONNECTED</Badge>
+                  <h4 className="font-bold text-slate-800 text-sm truncate" title={mp.name}>{mp.name}</h4>
+                  <Badge variant={mp.status === 'CONNECTED' ? 'success' : 'warning'}>
+                    {mp.status || 'CONNECTED'}
+                  </Badge>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Adapter: {mp.code} • Buffer: {mp.settings?.safetyBufferPercentage || 0}%
+                  Adapter: <span className="font-mono">{mp.code}</span> • Buffer: {mp.settings?.safetyBufferPercentage || 0}%
                 </p>
 
                 <div className="mt-4 space-y-1.5 text-xs text-slate-600">
                   <div className="flex justify-between">
                     <span>Mapped Products:</span>
-                    <strong className="text-slate-800">{mp.totalListings ?? 10}</strong>
+                    <strong className="text-slate-800">{mp.totalListings ?? products.length}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span>In-Sync Listings:</span>
-                    <strong className="text-emerald-600">{mp.inSyncCount ?? 10}</strong>
+                    <strong className="text-emerald-600">{mp.inSyncCount ?? products.length}</strong>
                   </div>
                 </div>
               </div>
@@ -380,12 +450,107 @@ export default function Marketplaces() {
                 >
                   <Bug size={13} /> Inject Failure
                 </button>
-                <span className="text-[10px] text-slate-400 font-mono">Simulated</span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  {mp.isSimulated ? 'Simulated' : 'Live API'}
+                </span>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Connect Marketplace Modal */}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="Connect New Marketplace Channel"
+        maxWidth="max-w-md"
+      >
+        <form onSubmit={handleCreateMarketplace} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              Quick Presets (Click to Auto-fill)
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {PRESET_MARKETPLACES.map((preset) => (
+                <button
+                  key={preset.code}
+                  type="button"
+                  onClick={() => handleSelectPreset(preset)}
+                  className="px-2 py-1 text-[11px] font-medium bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 rounded-md border border-slate-200 transition-colors"
+                >
+                  + {preset.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Input
+            label="Marketplace Display Name"
+            placeholder="e.g., Amazon US, Myntra, Tata CLiQ"
+            value={newMpName}
+            onChange={(e) => setNewMpName(e.target.value)}
+            required
+          />
+
+          <Input
+            label="Unique Channel Code (Lowercase Identifier)"
+            placeholder="e.g., amazon-us, myntra, tatacliq"
+            value={newMpCode}
+            onChange={(e) => setNewMpCode(e.target.value)}
+            required
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="API Key / Client ID"
+              placeholder="e.g., sp_api_key_..."
+              value={newMpApiKey}
+              onChange={(e) => setNewMpApiKey(e.target.value)}
+            />
+            <Input
+              label="API Secret / Token"
+              type="password"
+              placeholder="e.g., ••••••••••••"
+              value={newMpApiSecret}
+              onChange={(e) => setNewMpApiSecret(e.target.value)}
+            />
+          </div>
+
+          <Input
+            label="Safety Buffer Percentage (%)"
+            type="number"
+            min="0"
+            max="50"
+            value={newMpSafetyBuffer}
+            onChange={(e) => setNewMpSafetyBuffer(e.target.value)}
+            helperText="Withholds this buffer % of stock to eliminate overselling risk."
+          />
+
+          {createError && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs">
+              {createError}
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsAddModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              loading={creatingMp}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              Register & Connect
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

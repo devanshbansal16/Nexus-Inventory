@@ -52,6 +52,24 @@ const createMarketplace = asyncHandler(async (req, res) => {
 
   await marketplace.save();
 
+  // Automatically create listings for all active products
+  const products = await Product.find({ isActive: true });
+  const listings = products.map((prod) => ({
+    productId: prod._id,
+    marketplaceId: marketplace._id,
+    internalSKU: prod.sku,
+    externalSKU: `${marketplace.code.toUpperCase()}-${prod.sku}`,
+    externalProductId: `${marketplace.code.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
+    channelAllocatedStock: prod.stock?.availableStock || 0,
+    lastPublishedStock: prod.stock?.availableStock || 0,
+    syncStatus: 'IN_SYNC',
+    lastSyncedAt: new Date(),
+  }));
+
+  if (listings.length > 0) {
+    await MarketplaceListing.insertMany(listings);
+  }
+
   return new ApiResponse(201, 'Marketplace registered', marketplace).send(res, 201);
 });
 
