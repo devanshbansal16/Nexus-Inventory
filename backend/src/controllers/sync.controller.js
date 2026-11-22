@@ -1,10 +1,8 @@
-const mongoose = require('mongoose');
 const { SyncJob, MarketplaceListing, Marketplace } = require('../models');
 const syncService = require('../services/sync.service');
 const ApiResponse = require('../utils/ApiResponse');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../middleware/asyncHandler');
-const { DEMO_SYNC_JOBS, DEMO_MARKETPLACES } = require('../utils/demoData');
 
 const triggerSync = asyncHandler(async (req, res) => {
   const { productId } = req.body;
@@ -19,18 +17,6 @@ const triggerSync = asyncHandler(async (req, res) => {
 });
 
 const getSyncJobs = asyncHandler(async (req, res) => {
-  if (mongoose.connection.readyState !== 1) {
-    return new ApiResponse(200, 'Sync jobs fetched (Demo Mode)', {
-      jobs: DEMO_SYNC_JOBS,
-      pagination: {
-        total: DEMO_SYNC_JOBS.length,
-        page: 1,
-        limit: 20,
-        totalPages: 1,
-      },
-    }).send(res, 200);
-  }
-
   const { page = 1, limit = 20, status, marketplaceId } = req.query;
 
   const query = {};
@@ -79,27 +65,6 @@ const retrySyncJob = asyncHandler(async (req, res) => {
 });
 
 const getSyncStatus = asyncHandler(async (req, res) => {
-  if (mongoose.connection.readyState !== 1) {
-    const platforms = DEMO_MARKETPLACES.map((mp) => ({
-      id: mp._id,
-      name: mp.name,
-      code: mp.code,
-      connectionStatus: mp.status,
-      totalListings: mp.totalListings,
-      inSyncListings: mp.inSyncCount,
-      failedListings: mp.failedCount,
-      healthPercentage: 100,
-      lastSyncAt: mp.lastSyncAt,
-    }));
-
-    return new ApiResponse(200, 'Overall synchronization status (Demo Mode)', {
-      platforms,
-      totalSyncJobsProcessed: DEMO_SYNC_JOBS.length,
-      failedSyncJobs: 0,
-      recentJobs: DEMO_SYNC_JOBS,
-    }).send(res, 200);
-  }
-
   const marketplaces = await Marketplace.find();
   const listings = await MarketplaceListing.find();
   const recentJobs = await SyncJob.find().sort({ createdAt: -1 }).limit(10);

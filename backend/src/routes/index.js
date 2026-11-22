@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 
 const authRoutes = require('./auth.routes');
+const authController = require('../controllers/auth.controller');
+const { protect } = require('../middleware/auth');
 const productRoutes = require('./product.routes');
 const warehouseRoutes = require('./warehouse.routes');
 const inventoryRoutes = require('./inventory.routes');
@@ -25,6 +27,7 @@ router.use('/sync', syncRoutes);
 router.use('/transfers', transferRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/forecast', forecastRoutes);
+router.get('/users', protect, authController.getAllUsers);
 
 // Health check
 router.get('/health', (req, res) => {

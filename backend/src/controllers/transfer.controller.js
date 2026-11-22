@@ -1,10 +1,8 @@
-const mongoose = require('mongoose');
 const { StockTransfer, Inventory, InventoryTransaction, Product, Warehouse } = require('../models');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../middleware/asyncHandler');
 const { emitInventoryUpdate } = require('../sockets/socketHandler');
-const { DEMO_TRANSFERS } = require('../utils/demoData');
 
 const createTransfer = asyncHandler(async (req, res) => {
   const { productId, sourceWarehouseId, destinationWarehouseId, quantity, notes } = req.body;
@@ -40,10 +38,6 @@ const createTransfer = asyncHandler(async (req, res) => {
 });
 
 const getTransfers = asyncHandler(async (req, res) => {
-  if (mongoose.connection.readyState !== 1) {
-    return new ApiResponse(200, 'Stock transfers fetched (Demo Mode)', DEMO_TRANSFERS).send(res, 200);
-  }
-
   const { status, sourceWarehouseId, destinationWarehouseId } = req.query;
 
   const query = {};

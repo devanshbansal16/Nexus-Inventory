@@ -1,10 +1,8 @@
 const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
 const { User } = require('../models');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../middleware/asyncHandler');
-const { DEMO_USERS } = require('../utils/demoData');
 
 const generateTokens = (user) => {
   const token = jwt.sign(
@@ -62,33 +60,6 @@ const login = asyncHandler(async (req, res) => {
 
   if (!email || !password) {
     throw new ApiError(400, 'Email and password are required');
-  }
-
-  // Standalone / Demo mode fallback when MongoDB is not connected
-  if (mongoose.connection.readyState !== 1) {
-    const demoUser = DEMO_USERS.find(
-      (u) =>
-        u.email.toLowerCase() === email.toLowerCase().trim() &&
-        (password === 'Admin@123' || password === u.password)
-    );
-    if (!demoUser) {
-      throw new ApiError(401, 'Invalid email or password. Use demo accounts (e.g. inventory@cims.com / Admin@123)');
-    }
-
-    const { token, refreshToken } = generateTokens(demoUser);
-    res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production' });
-
-    return new ApiResponse(200, 'Login successful (Demo Mode)', {
-      user: {
-        id: demoUser._id,
-        name: demoUser.name,
-        email: demoUser.email,
-        role: demoUser.role,
-        assignedWarehouses: demoUser.assignedWarehouses || [],
-      },
-      token,
-      refreshToken,
-    }).send(res, 200);
   }
 
   const user = await User.findOne({ email }).select('+passwordHash');
@@ -173,11 +144,21 @@ const changePassword = asyncHandler(async (req, res) => {
   return new ApiResponse(200, 'Password updated successfully').send(res, 200);
 });
 
+const getAllUsers = asyncHandler(async (req, res) => {
+  const users = await User.find()
+    .select('-passwordHash -refreshToken')
+    .populate('assignedWarehouses', 'name warehouseCode')
+    .sort({ createdAt: 1 });
+
+  return new ApiResponse(200, 'Users fetched successfully', users).send(res, 200);
+});
+
 module.exports = {
   register,
   login,
   logout,
   getMe,
+  getAllUsers,
   refresh,
   changePassword,
 };

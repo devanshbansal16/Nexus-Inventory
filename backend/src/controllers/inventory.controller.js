@@ -1,17 +1,11 @@
-const mongoose = require('mongoose');
 const { Inventory, InventoryTransaction, Product, Warehouse } = require('../models');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../middleware/asyncHandler');
 const inventoryService = require('../services/inventory.service');
 const syncService = require('../services/sync.service');
-const { DEMO_INVENTORY } = require('../utils/demoData');
 
 const getInventory = asyncHandler(async (req, res) => {
-  if (mongoose.connection.readyState !== 1) {
-    return new ApiResponse(200, 'Inventory records fetched (Demo Mode)', DEMO_INVENTORY).send(res, 200);
-  }
-
   const { warehouseId, lowStockOnly } = req.query;
 
   const query = {};

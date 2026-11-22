@@ -1,11 +1,9 @@
-const mongoose = require('mongoose');
 const { Order, Marketplace } = require('../models');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../middleware/asyncHandler');
 const orderService = require('../services/order.service');
 const syncService = require('../services/sync.service');
-const { DEMO_ORDERS } = require('../utils/demoData');
 
 const createOrder = asyncHandler(async (req, res) => {
   const {
@@ -57,18 +55,6 @@ const createOrder = asyncHandler(async (req, res) => {
 });
 
 const getOrders = asyncHandler(async (req, res) => {
-  if (mongoose.connection.readyState !== 1) {
-    return new ApiResponse(200, 'Orders fetched successfully (Demo Mode)', {
-      orders: DEMO_ORDERS,
-      pagination: {
-        total: DEMO_ORDERS.length,
-        page: 1,
-        limit: 20,
-        totalPages: 1,
-      },
-    }).send(res, 200);
-  }
-
   const { page = 1, limit = 20, status, marketplaceId, search } = req.query;
 
   const query = {};
